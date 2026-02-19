@@ -56,11 +56,10 @@ function TikTokTracker() {
       end: end.toISOString().split('T')[0],
     };
   });
-  const [showImport, setShowImport] = useState(false);
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [importWeek, setImportWeek] = useState("");
   const [importText, setImportText] = useState("");
   const [importStatus, setImportStatus] = useState("");
-  const [showTable, setShowTable] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
@@ -192,7 +191,6 @@ function TikTokTracker() {
   const metricInfo = METRICS.find((m) => m.key === activeMetric);
 
   const tableData = useMemo(() => {
-    if (!showTable) return [];
     const rows = [];
     for (const wd of weeksData) {
       if (!filteredWeeks.includes(wd.week)) continue;
@@ -201,7 +199,7 @@ function TikTokTracker() {
       }
     }
     return rows.sort((a, b) => b.gmv - a.gmv);
-  }, [weeksData, filteredWeeks, showTable]);
+  }, [weeksData, filteredWeeks]);
 
   const totals = useMemo(() => {
     let gmv = 0, orders = 0, commission = 0, creators = new Set(), videos = new Set();
@@ -234,15 +232,11 @@ function TikTokTracker() {
             {weeksData.length} weeks · {weeksData.reduce((s, w) => s + w.records.length, 0)} records · {totals.creators} creators
           </p>
         </div>
-        <div className="header-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={() => setShowImport(!showImport)}
-            className={showImport ? "btn-primary" : "btn-ghost"}
-            style={showImport ? {} : { color: "#E94560", borderColor: "#E9456033" }}>
-            {showImport ? "✕ Close" : "+ Import"}
-          </button>
-          <button onClick={() => setShowTable(!showTable)} className="btn-ghost">
-            {showTable ? "Hide Table" : "Table"}
-          </button>
+        <div className="header-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <div className="pill-group">
+            <button onClick={() => setActiveTab("dashboard")} className={`pill-btn ${activeTab === "dashboard" ? "active red" : ""}`}>Dashboard</button>
+            <button onClick={() => setActiveTab("data")} className={`pill-btn ${activeTab === "data" ? "active red" : ""}`}>Data</button>
+          </div>
           <button onClick={handleExportCSV} className="btn-ghost">
             ↓ CSV
           </button>
@@ -251,184 +245,226 @@ function TikTokTracker() {
 
       <div className="glow-line" />
 
-      {/* Import Panel */}
-      {showImport && (
-        <div className="card" style={{ marginBottom: 20, borderColor: "#E9456033" }}>
-          <h3 style={{ margin: "0 0 8px", color: "#E94560", fontSize: 16, fontWeight: 700 }}>Import Weekly Export</h3>
-          <p style={{ color: "#484F58", fontSize: 13, margin: "0 0 14px" }}>
-            Open TikTok export in Excel → Select all data including headers → Copy → Paste below
-          </p>
-          <div style={{ display: "flex", gap: 12, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <label style={{ color: "#6B7280", fontSize: 13 }}>Week ending:</label>
-            <input type="text" placeholder="MM/DD/YYYY" value={importWeek}
-              onChange={(e) => setImportWeek(e.target.value)} className="import-input" />
-          </div>
-          <textarea value={importText} onChange={(e) => setImportText(e.target.value)}
-            placeholder="Paste tab-separated data here (with header row)..." className="import-textarea" />
-          <div style={{ display: "flex", gap: 12, marginTop: 14, alignItems: "center", flexWrap: "wrap" }}>
-            <button onClick={handleImport} className="btn-primary">Import Data</button>
-            <button onClick={handleReset} className="btn-ghost">Reset to Sample</button>
-            {importStatus && <span style={{ color: importStatus.includes("Imported") ? "#00B894" : "#E94560", fontSize: 13 }}>{importStatus}</span>}
-          </div>
-        </div>
-      )}
-
-      {/* Controls */}
-      <div className="controls-row" style={{ display: "flex", gap: 14, marginBottom: 22, flexWrap: "wrap", alignItems: "center" }}>
-        <div className="pill-group">
-          {METRICS.map((m) => (
-            <button key={m.key} onClick={() => setActiveMetric(m.key)}
-              className={`pill-btn ${activeMetric === m.key ? "active red" : ""}`}>
-              {m.label}
-            </button>
-          ))}
-        </div>
-        <div className="pill-group">
-          {[{ key: "creator", label: "By Creator" }, { key: "video", label: "By Video" }].map((g) => (
-            <button key={g.key} onClick={() => { setGroupBy(g.key); setHiddenLines(new Set()); }}
-              className={`pill-btn ${groupBy === g.key ? "active purple" : ""}`}>
-              {g.label}
-            </button>
-          ))}
-        </div>
-        <div className="date-range-row" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <span style={{ color: "#484F58", fontSize: 13 }}>From</span>
-          <input type="date" value={dateRange.start} onChange={(e) => setDateRange((d) => ({ ...d, start: e.target.value }))} className="date-input" />
-          <span style={{ color: "#484F58", fontSize: 13 }}>to</span>
-          <input type="date" value={dateRange.end} onChange={(e) => setDateRange((d) => ({ ...d, end: e.target.value }))} className="date-input" />
-          <div className="date-presets" style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
-            {[7, 14, 30, 180, 365].map((days) => {
-              const end = new Date();
-              const start = new Date();
-              start.setDate(start.getDate() - days);
-              const s = start.toISOString().split('T')[0];
-              const e = end.toISOString().split('T')[0];
-              const isActive = dateRange.start === s && dateRange.end === e;
-              return (
-                <button key={days} onClick={() => setDateRange({ start: s, end: e })}
-                  className="btn-ghost" style={{ padding: "7px 10px", fontSize: 11, borderColor: isActive ? "#6C5CE7" : undefined, color: isActive ? "#C9D1D9" : undefined }}>
-                  {days}d
+      {activeTab === "dashboard" ? (
+        <>
+          {/* Controls */}
+          <div className="controls-row" style={{ display: "flex", gap: 14, marginBottom: 22, flexWrap: "wrap", alignItems: "center" }}>
+            <div className="pill-group">
+              {METRICS.map((m) => (
+                <button key={m.key} onClick={() => setActiveMetric(m.key)}
+                  className={`pill-btn ${activeMetric === m.key ? "active red" : ""}`}>
+                  {m.label}
                 </button>
-              );
-            })}
-            <button onClick={() => setDateRange({ start: "", end: "" })}
-              className="btn-ghost" style={{ padding: "7px 10px", fontSize: 11, borderColor: !dateRange.start && !dateRange.end ? "#6C5CE7" : undefined, color: !dateRange.start && !dateRange.end ? "#C9D1D9" : undefined }}>
-              All
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Stat Cards */}
-      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 22 }}>
-        {[
-          { label: "Total GMV", value: `$${totals.gmv.toFixed(2)}`, color: "#00B894" },
-          { label: "Orders", value: totals.orders, color: "#6C5CE7" },
-          { label: "Commission", value: `$${totals.commission.toFixed(2)}`, color: "#FDCB6E" },
-          { label: "Creators", value: totals.creators, color: "#00CEC9" },
-          { label: "Weeks", value: filteredWeeks.length, color: "#E94560" },
-        ].map((card) => (
-          <div key={card.label} className="card" style={{ padding: "16px 18px" }}>
-            <div className="stat-label">{card.label}</div>
-            <div className="stat-value" style={{ color: card.color }}>{card.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Chart */}
-      <div className="card card-glow" style={{ marginBottom: 20, padding: "20px 16px 10px" }}>
-        <h3 style={{ margin: "0 0 14px", color: "#C9D1D9", fontSize: 15, fontWeight: 600 }}>
-          {metricInfo.label} by {groupBy === "creator" ? "Creator" : "Video"} — Week over Week
-        </h3>
-        <RechartsComponents>
-          {({ LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid }) => (
-            <ResponsiveContainer width="100%" height={360}>
-              <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1E2533" />
-                <XAxis dataKey="week" stroke="#484F58" fontSize={12} fontFamily="DM Sans" />
-                <YAxis stroke="#484F58" fontSize={12} fontFamily="DM Sans" tickFormatter={metricInfo.format} />
-                <Tooltip
-                  contentStyle={{ background: "#12161E", border: "1px solid #1E2533", borderRadius: 10, color: "#C9D1D9", fontSize: 13, fontFamily: "DM Sans" }}
-                  formatter={(value, name) => [metricInfo.format(value), lineLabels[name] || name]}
-                  labelStyle={{ color: "#E94560", fontWeight: 700, marginBottom: 4 }}
-                />
-                {lineKeys.filter((k) => !hiddenLines.has(k)).map((key) => (
-                  <Line key={key} type="monotone" dataKey={key} stroke={colorMap[key]} strokeWidth={2.5}
-                    dot={{ r: 4, fill: colorMap[key], strokeWidth: 0 }} activeDot={{ r: 6 }} connectNulls={false} name={key} />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </RechartsComponents>
-      </div>
-
-      {/* Toggle Legend */}
-      <div className="card" style={{ marginBottom: 20, padding: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <h3 style={{ margin: 0, color: "#C9D1D9", fontSize: 13, fontWeight: 600 }}>
-            Toggle {groupBy === "creator" ? "Creators" : "Videos"}
-          </h3>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => setHiddenLines(new Set())} className="btn-ghost" style={{ padding: "4px 12px", fontSize: 11, color: "#00B894" }}>Show All</button>
-            <button onClick={() => setHiddenLines(new Set(lineKeys))} className="btn-ghost" style={{ padding: "4px 12px", fontSize: 11, color: "#E94560" }}>Hide All</button>
-          </div>
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {lineKeys.map((key) => {
-            const isHidden = hiddenLines.has(key);
-            return (
-              <button key={key} onClick={() => {
-                const next = new Set(hiddenLines);
-                isHidden ? next.delete(key) : next.add(key);
-                setHiddenLines(next);
-              }}
-                className="toggle-pill"
-                style={{
-                  borderColor: colorMap[key],
-                  background: isHidden ? "transparent" : colorMap[key] + "18",
-                  color: isHidden ? "#484F58" : "#C9D1D9",
-                  opacity: isHidden ? 0.35 : 1,
-                }}>
-                <span className="dot" style={{ background: colorMap[key] }} />
-                {lineLabels[key]}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Data Table */}
-      {showTable && (
-        <div className="card" style={{ overflowX: "auto" }}>
-          <h3 style={{ margin: "0 0 14px", color: "#C9D1D9", fontSize: 15, fontWeight: 600 }}>All Records</h3>
-          <table className="data-table">
-            <thead>
-              <tr>
-                {["Week", "Creator", "Video", "Product", "GMV", "Orders", "Items", "Commission"].map((h) => (
-                  <th key={h}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {tableData.map((r, i) => (
-                <tr key={i}>
-                  <td style={{ color: "#E94560", fontWeight: 600, whiteSpace: "nowrap" }}>{r.week}</td>
-                  <td>{r.creator}</td>
-                  <td style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>
-                    <a href={tiktokUrl(r.creator, r.video_id)} target="_blank" rel="noopener noreferrer">
-                      ...{r.video_id.slice(-8)}
-                    </a>
-                  </td>
-                  <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.product}</td>
-                  <td style={{ color: "#00B894", fontWeight: 600 }}>${r.gmv.toFixed(2)}</td>
-                  <td>{r.orders}</td>
-                  <td>{r.items_sold}</td>
-                  <td style={{ color: "#FDCB6E" }}>${r.commission.toFixed(2)}</td>
-                </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+            <div className="pill-group">
+              {[{ key: "creator", label: "By Creator" }, { key: "video", label: "By Video" }].map((g) => (
+                <button key={g.key} onClick={() => { setGroupBy(g.key); setHiddenLines(new Set()); }}
+                  className={`pill-btn ${groupBy === g.key ? "active purple" : ""}`}>
+                  {g.label}
+                </button>
+              ))}
+            </div>
+            <div className="date-range-row" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ color: "#484F58", fontSize: 13 }}>From</span>
+              <input type="date" value={dateRange.start} onChange={(e) => setDateRange((d) => ({ ...d, start: e.target.value }))} className="date-input" />
+              <span style={{ color: "#484F58", fontSize: 13 }}>to</span>
+              <input type="date" value={dateRange.end} onChange={(e) => setDateRange((d) => ({ ...d, end: e.target.value }))} className="date-input" />
+              <div className="date-presets" style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
+                {[7, 14, 30, 180, 365].map((days) => {
+                  const end = new Date();
+                  const start = new Date();
+                  start.setDate(start.getDate() - days);
+                  const s = start.toISOString().split('T')[0];
+                  const e = end.toISOString().split('T')[0];
+                  const isActive = dateRange.start === s && dateRange.end === e;
+                  return (
+                    <button key={days} onClick={() => setDateRange({ start: s, end: e })}
+                      className="btn-ghost" style={{ padding: "7px 10px", fontSize: 11, borderColor: isActive ? "#6C5CE7" : undefined, color: isActive ? "#C9D1D9" : undefined }}>
+                      {days}d
+                    </button>
+                  );
+                })}
+                <button onClick={() => setDateRange({ start: "", end: "" })}
+                  className="btn-ghost" style={{ padding: "7px 10px", fontSize: 11, borderColor: !dateRange.start && !dateRange.end ? "#6C5CE7" : undefined, color: !dateRange.start && !dateRange.end ? "#C9D1D9" : undefined }}>
+                  All
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Stat Cards */}
+          <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 22 }}>
+            {[
+              { label: "Total GMV", value: `$${totals.gmv.toFixed(2)}`, color: "#00B894" },
+              { label: "Orders", value: totals.orders, color: "#6C5CE7" },
+              { label: "Commission", value: `$${totals.commission.toFixed(2)}`, color: "#FDCB6E" },
+              { label: "Creators", value: totals.creators, color: "#00CEC9" },
+              { label: "Weeks", value: filteredWeeks.length, color: "#E94560" },
+            ].map((card) => (
+              <div key={card.label} className="card" style={{ padding: "16px 18px" }}>
+                <div className="stat-label">{card.label}</div>
+                <div className="stat-value" style={{ color: card.color }}>{card.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Chart */}
+          <div className="card card-glow" style={{ marginBottom: 20, padding: "20px 16px 10px" }}>
+            <h3 style={{ margin: "0 0 14px", color: "#C9D1D9", fontSize: 15, fontWeight: 600 }}>
+              {metricInfo.label} by {groupBy === "creator" ? "Creator" : "Video"} — Week over Week
+            </h3>
+            <RechartsComponents>
+              {({ LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid }) => (
+                <ResponsiveContainer width="100%" height={360}>
+                  <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1E2533" />
+                    <XAxis dataKey="week" stroke="#484F58" fontSize={12} fontFamily="DM Sans" />
+                    <YAxis stroke="#484F58" fontSize={12} fontFamily="DM Sans" tickFormatter={metricInfo.format} />
+                    <Tooltip
+                      contentStyle={{ background: "#12161E", border: "1px solid #1E2533", borderRadius: 10, color: "#C9D1D9", fontSize: 13, fontFamily: "DM Sans" }}
+                      formatter={(value, name) => [metricInfo.format(value), lineLabels[name] || name]}
+                      labelStyle={{ color: "#E94560", fontWeight: 700, marginBottom: 4 }}
+                    />
+                    {lineKeys.filter((k) => !hiddenLines.has(k)).map((key) => (
+                      <Line key={key} type="monotone" dataKey={key} stroke={colorMap[key]} strokeWidth={2.5}
+                        dot={{ r: 4, fill: colorMap[key], strokeWidth: 0 }} activeDot={{ r: 6 }} connectNulls={false} name={key} />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </RechartsComponents>
+          </div>
+
+          {/* Toggle Legend */}
+          <div className="card" style={{ marginBottom: 20, padding: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ margin: 0, color: "#C9D1D9", fontSize: 13, fontWeight: 600 }}>
+                Toggle {groupBy === "creator" ? "Creators" : "Videos"}
+              </h3>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setHiddenLines(new Set())} className="btn-ghost" style={{ padding: "4px 12px", fontSize: 11, color: "#00B894" }}>Show All</button>
+                <button onClick={() => setHiddenLines(new Set(lineKeys))} className="btn-ghost" style={{ padding: "4px 12px", fontSize: 11, color: "#E94560" }}>Hide All</button>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {lineKeys.map((key) => {
+                const isHidden = hiddenLines.has(key);
+                return (
+                  <button key={key} onClick={() => {
+                    const next = new Set(hiddenLines);
+                    isHidden ? next.delete(key) : next.add(key);
+                    setHiddenLines(next);
+                  }}
+                    className="toggle-pill"
+                    style={{
+                      borderColor: colorMap[key],
+                      background: isHidden ? "transparent" : colorMap[key] + "18",
+                      color: isHidden ? "#484F58" : "#C9D1D9",
+                      opacity: isHidden ? 0.35 : 1,
+                    }}>
+                    <span className="dot" style={{ background: colorMap[key] }} />
+                    {lineLabels[key]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Data Table */}
+          <div className="card" style={{ overflowX: "auto" }}>
+            <h3 style={{ margin: "0 0 14px", color: "#C9D1D9", fontSize: 15, fontWeight: 600 }}>All Records</h3>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  {["Week", "Creator", "Video", "Product", "GMV", "Orders", "Items", "Commission"].map((h) => (
+                    <th key={h}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {tableData.map((r, i) => (
+                  <tr key={i}>
+                    <td style={{ color: "#E94560", fontWeight: 600, whiteSpace: "nowrap" }}>{r.week}</td>
+                    <td>{r.creator}</td>
+                    <td style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>
+                      <a href={tiktokUrl(r.creator, r.video_id)} target="_blank" rel="noopener noreferrer">
+                        ...{r.video_id.slice(-8)}
+                      </a>
+                    </td>
+                    <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.product}</td>
+                    <td style={{ color: "#00B894", fontWeight: 600 }}>${r.gmv.toFixed(2)}</td>
+                    <td>{r.orders}</td>
+                    <td>{r.items_sold}</td>
+                    <td style={{ color: "#FDCB6E" }}>${r.commission.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Data Tab — Import + Raw Data by Week */}
+          <div className="card" style={{ marginBottom: 20, borderColor: "#E9456033" }}>
+            <h3 style={{ margin: "0 0 8px", color: "#E94560", fontSize: 16, fontWeight: 700 }}>Import Weekly Export</h3>
+            <p style={{ color: "#484F58", fontSize: 13, margin: "0 0 14px" }}>
+              Open TikTok export in Excel → Select all data including headers → Copy → Paste below
+            </p>
+            <div style={{ display: "flex", gap: 12, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <label style={{ color: "#6B7280", fontSize: 13 }}>Week ending:</label>
+              <input type="text" placeholder="MM/DD/YYYY" value={importWeek}
+                onChange={(e) => setImportWeek(e.target.value)} className="import-input" />
+            </div>
+            <textarea value={importText} onChange={(e) => setImportText(e.target.value)}
+              placeholder="Paste tab-separated data here (with header row)..." className="import-textarea" />
+            <div style={{ display: "flex", gap: 12, marginTop: 14, alignItems: "center", flexWrap: "wrap" }}>
+              <button onClick={handleImport} className="btn-primary">Import Data</button>
+              <button onClick={handleReset} className="btn-ghost">Reset to Sample</button>
+              {importStatus && <span style={{ color: importStatus.includes("Imported") ? "#00B894" : "#E94560", fontSize: 13 }}>{importStatus}</span>}
+            </div>
+          </div>
+
+          {/* Data by Week */}
+          {weeksData.slice().sort((a, b) => new Date(b.week) - new Date(a.week)).map((wd) => (
+            <div key={wd.week} className="card" style={{ marginBottom: 16, overflowX: "auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <h3 style={{ margin: 0, color: "#E94560", fontSize: 15, fontWeight: 700 }}>
+                  Week of {wd.week}
+                </h3>
+                <span style={{ color: "#6B7280", fontSize: 12 }}>
+                  {wd.records.length} records · ${wd.records.reduce((s, r) => s + r.gmv, 0).toFixed(2)} GMV
+                </span>
+              </div>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    {["Creator", "Video", "Product", "GMV", "Orders", "Items", "Commission"].map((h) => (
+                      <th key={h}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {wd.records.slice().sort((a, b) => b.gmv - a.gmv).map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.creator}</td>
+                      <td style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>
+                        <a href={tiktokUrl(r.creator, r.video_id)} target="_blank" rel="noopener noreferrer">
+                          ...{r.video_id.slice(-8)}
+                        </a>
+                      </td>
+                      <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.product}</td>
+                      <td style={{ color: "#00B894", fontWeight: 600 }}>${r.gmv.toFixed(2)}</td>
+                      <td>{r.orders}</td>
+                      <td>{r.items_sold}</td>
+                      <td style={{ color: "#FDCB6E" }}>${r.commission.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </>
       )}
 
       {/* Footer */}
