@@ -60,7 +60,7 @@ function TikTokTracker() {
   const [importWeek, setImportWeek] = useState("");
   const [importText, setImportText] = useState("");
   const [importStatus, setImportStatus] = useState("");
-  const [showTable, setShowTable] = useState(false);
+  const [showTable, setShowTable] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
