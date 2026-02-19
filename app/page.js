@@ -291,12 +291,31 @@ function TikTokTracker() {
             </button>
           ))}
         </div>
-        <div className="date-range-row" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div className="date-range-row" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <span style={{ color: "#484F58", fontSize: 13 }}>From</span>
           <input type="date" value={dateRange.start} onChange={(e) => setDateRange((d) => ({ ...d, start: e.target.value }))} className="date-input" />
           <span style={{ color: "#484F58", fontSize: 13 }}>to</span>
           <input type="date" value={dateRange.end} onChange={(e) => setDateRange((d) => ({ ...d, end: e.target.value }))} className="date-input" />
-          <button onClick={() => setDateRange({ start: "", end: "" })} className="btn-ghost" style={{ padding: "7px 12px", fontSize: 12 }}>All Time</button>
+          <div className="date-presets" style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
+            {[7, 14, 30, 180, 365].map((days) => {
+              const end = new Date();
+              const start = new Date();
+              start.setDate(start.getDate() - days);
+              const s = start.toISOString().split('T')[0];
+              const e = end.toISOString().split('T')[0];
+              const isActive = dateRange.start === s && dateRange.end === e;
+              return (
+                <button key={days} onClick={() => setDateRange({ start: s, end: e })}
+                  className="btn-ghost" style={{ padding: "7px 10px", fontSize: 11, borderColor: isActive ? "#6C5CE7" : undefined, color: isActive ? "#C9D1D9" : undefined }}>
+                  {days}d
+                </button>
+              );
+            })}
+            <button onClick={() => setDateRange({ start: "", end: "" })}
+              className="btn-ghost" style={{ padding: "7px 10px", fontSize: 11, borderColor: !dateRange.start && !dateRange.end ? "#6C5CE7" : undefined, color: !dateRange.start && !dateRange.end ? "#C9D1D9" : undefined }}>
+              All
+            </button>
+          </div>
         </div>
       </div>
 

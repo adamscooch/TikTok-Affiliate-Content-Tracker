@@ -226,8 +226,8 @@ body::before {
   .header-row { flex-direction: column !important; }
   .header-actions { width: 100%; }
   .header-actions button { flex: 1; }
-  .date-range-row { flex-direction: column !important; align-items: flex-start !important; width: 100%; }
-  .date-input { width: 100%; }
+  .date-range-row { flex-wrap: wrap !important; align-items: center !important; }
+  .date-input { width: auto; }
   .stat-value { font-size: 20px; }
   .card { padding: 14px; }
 }
