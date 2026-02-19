@@ -10,6 +10,7 @@
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -200,6 +201,25 @@
     cursor: pointer;
   }
   .select-dark:focus { outline: none; border-color: #6C5CE7; }
+  /* Login screen */
+  .login-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 24px;
+  }
+  .login-screen h1 { font-size: 32px; font-weight: 700; color: #E94560; letter-spacing: -0.5px; }
+  .login-screen p { color: #6B7280; font-size: 14px; }
+  .login-error { color: #E94560; font-size: 13px; background: #E9456018; padding: 8px 16px; border-radius: 8px; }
+  .logout-btn {
+    position: fixed; top: 16px; right: 16px; z-index: 100;
+    background: transparent; border: 1px solid #1E2533; border-radius: 8px;
+    padding: 6px 14px; color: #6B7280; font-size: 12px; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; transition: border-color 0.2s;
+  }
+  .logout-btn:hover { border-color: #484F58; color: #C9D1D9; }
   /* Responsive */
   @media (max-width: 768px) {
     .controls-row { flex-direction: column !important; }
@@ -698,7 +718,94 @@ function TikTokTracker() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<TikTokTracker />);
+const GOOGLE_CLIENT_ID = "317896640663-dke5vlip2gs73n02bi6lf57498muqb5l.apps.googleusercontent.com";
+const ALLOWED_DOMAIN = "scooch.com";
+
+function parseJwt(token) {
+  const base64Url = token.split('.')[1];
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  return JSON.parse(decodeURIComponent(atob(base64).split('').map(c =>
+    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+  ).join('')));
+}
+
+function AuthGate() {
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem("scooch-auth-user");
+      return stored ? JSON.parse(stored) : null;
+    } catch { return null; }
+  });
+  const [error, setError] = useState("");
+  const btnRef = React.useRef(null);
+
+  const handleCredentialResponse = useCallback((response) => {
+    try {
+      const payload = parseJwt(response.credential);
+      const email = payload.email || "";
+      const domain = email.split("@")[1];
+      if (domain !== ALLOWED_DOMAIN) {
+        setError(`Access restricted to @${ALLOWED_DOMAIN} accounts. You signed in with ${email}.`);
+        return;
+      }
+      const userData = { email, name: payload.name, picture: payload.picture };
+      sessionStorage.setItem("scooch-auth-user", JSON.stringify(userData));
+      setUser(userData);
+      setError("");
+    } catch {
+      setError("Authentication failed. Please try again.");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) return;
+    const interval = setInterval(() => {
+      if (window.google && btnRef.current) {
+        clearInterval(interval);
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleCredentialResponse,
+        });
+        google.accounts.id.renderButton(btnRef.current, {
+          theme: "filled_black",
+          size: "large",
+          text: "signin_with",
+          shape: "pill",
+        });
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [user, handleCredentialResponse]);
+
+  const handleLogout = useCallback(() => {
+    sessionStorage.removeItem("scooch-auth-user");
+    setUser(null);
+    setError("");
+  }, []);
+
+  if (!user) {
+    return (
+      <div className="login-screen">
+        <h1>TikTok Affiliate Tracker</h1>
+        <span style={{ fontSize: 11, background: "#1E2533", color: "#6B7280", padding: "3px 10px", borderRadius: 6, fontWeight: 500 }}>SCOOCH</span>
+        <p>Sign in with your @{ALLOWED_DOMAIN} Google account to continue</p>
+        <div ref={btnRef} />
+        {error && <div className="login-error">{error}</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <button className="logout-btn" onClick={handleLogout}>
+        {user.email} · Sign out
+      </button>
+      <TikTokTracker />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<AuthGate />);
 </script>
 </body>
 </html>
