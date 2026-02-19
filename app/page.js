@@ -47,7 +47,15 @@ function TikTokTracker() {
   const [activeMetric, setActiveMetric] = useState("gmv");
   const [groupBy, setGroupBy] = useState("creator");
   const [hiddenLines, setHiddenLines] = useState(new Set());
-  const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const [dateRange, setDateRange] = useState(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    return {
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    };
+  });
   const [showImport, setShowImport] = useState(false);
   const [importWeek, setImportWeek] = useState("");
   const [importText, setImportText] = useState("");
@@ -111,7 +119,10 @@ function TikTokTracker() {
     await fetch('/api/seed', { method: 'POST' });
     await fetchData();
     setHiddenLines(new Set());
-    setDateRange({ start: "", end: "" });
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    setDateRange({ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] });
   }, [fetchData]);
 
   const handleExportCSV = useCallback(() => {
@@ -134,8 +145,14 @@ function TikTokTracker() {
   const filteredWeeks = useMemo(() => {
     return allWeeks.filter((w) => {
       const d = new Date(w);
-      if (dateRange.start && d < new Date(dateRange.start)) return false;
-      if (dateRange.end && d > new Date(dateRange.end)) return false;
+      if (dateRange.start) {
+        const start = new Date(dateRange.start + 'T00:00:00');
+        if (d < start) return false;
+      }
+      if (dateRange.end) {
+        const end = new Date(dateRange.end + 'T23:59:59');
+        if (d > end) return false;
+      }
       return true;
     });
   }, [allWeeks, dateRange]);
@@ -203,9 +220,9 @@ function TikTokTracker() {
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, flexWrap: "wrap", gap: 16 }}>
+      <div className="header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <h1 style={{ fontSize: 28, fontWeight: 700, color: "#E94560", letterSpacing: -0.5 }}>
               TikTok Affiliate Tracker
             </h1>
@@ -217,14 +234,14 @@ function TikTokTracker() {
             {weeksData.length} weeks · {weeksData.reduce((s, w) => s + w.records.length, 0)} records · {totals.creators} creators
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="header-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={() => setShowImport(!showImport)}
             className={showImport ? "btn-primary" : "btn-ghost"}
             style={showImport ? {} : { color: "#E94560", borderColor: "#E9456033" }}>
-            {showImport ? "✕ Close" : "+ Import Week"}
+            {showImport ? "✕ Close" : "+ Import"}
           </button>
           <button onClick={() => setShowTable(!showTable)} className="btn-ghost">
-            {showTable ? "Hide Table" : "Data Table"}
+            {showTable ? "Hide Table" : "Table"}
           </button>
           <button onClick={handleExportCSV} className="btn-ghost">
             ↓ CSV
@@ -274,17 +291,12 @@ function TikTokTracker() {
             </button>
           ))}
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div className="date-range-row" style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{ color: "#484F58", fontSize: 13 }}>From</span>
-          <select value={dateRange.start} onChange={(e) => setDateRange((d) => ({ ...d, start: e.target.value }))} className="select-dark">
-            <option value="">All</option>
-            {allWeeks.map((w) => <option key={w} value={w}>{w}</option>)}
-          </select>
+          <input type="date" value={dateRange.start} onChange={(e) => setDateRange((d) => ({ ...d, start: e.target.value }))} className="date-input" />
           <span style={{ color: "#484F58", fontSize: 13 }}>to</span>
-          <select value={dateRange.end} onChange={(e) => setDateRange((d) => ({ ...d, end: e.target.value }))} className="select-dark">
-            <option value="">All</option>
-            {allWeeks.map((w) => <option key={w} value={w}>{w}</option>)}
-          </select>
+          <input type="date" value={dateRange.end} onChange={(e) => setDateRange((d) => ({ ...d, end: e.target.value }))} className="date-input" />
+          <button onClick={() => setDateRange({ start: "", end: "" })} className="btn-ghost" style={{ padding: "7px 12px", fontSize: 12 }}>All Time</button>
         </div>
       </div>
 
@@ -487,9 +499,11 @@ export default function AuthGate() {
     <>
       <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       <div>
-        <button className="logout-btn" onClick={handleLogout}>
-          {user.email} · Sign out
-        </button>
+        <div style={{ display: "flex", justifyContent: "flex-end", padding: "10px 24px 0" }}>
+          <button className="logout-btn" onClick={handleLogout}>
+            {user.email} · Sign out
+          </button>
+        </div>
         <TikTokTracker />
       </div>
     </>

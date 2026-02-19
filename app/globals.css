@@ -199,14 +199,35 @@ body::before {
 .login-screen p { color: #6B7280; font-size: 14px; }
 .login-error { color: #E94560; font-size: 13px; background: #E9456018; padding: 8px 16px; border-radius: 8px; }
 .logout-btn {
-  position: fixed; top: 16px; right: 16px; z-index: 100;
   background: transparent; border: 1px solid #1E2533; border-radius: 8px;
   padding: 6px 14px; color: #6B7280; font-size: 12px; font-family: 'DM Sans', sans-serif;
-  cursor: pointer; transition: border-color 0.2s;
+  cursor: pointer; transition: border-color 0.2s; white-space: nowrap;
 }
 .logout-btn:hover { border-color: #484F58; color: #C9D1D9; }
+/* Date inputs */
+.date-input {
+  background: #12161E;
+  border: 1px solid #1E2533;
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: #C9D1D9;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  color-scheme: dark;
+}
+.date-input:focus { outline: none; border-color: #6C5CE7; }
 /* Responsive */
 @media (max-width: 768px) {
-  .controls-row { flex-direction: column !important; }
+  .controls-row { flex-direction: column !important; align-items: flex-start !important; }
   .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .pill-group { flex-wrap: wrap; }
+  .pill-btn { padding: 8px 12px; font-size: 12px; }
+  .header-row { flex-direction: column !important; }
+  .header-actions { width: 100%; }
+  .header-actions button { flex: 1; }
+  .date-range-row { flex-direction: column !important; align-items: flex-start !important; width: 100%; }
+  .date-input { width: 100%; }
+  .stat-value { font-size: 20px; }
+  .card { padding: 14px; }
 }
